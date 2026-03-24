@@ -32,7 +32,7 @@ const getBackdatedPublishDate = (): {
 	};
 };
 
-const cleanCred = (s: string): string =>
+export const cleanCred = (s: string): string =>
 	String(s || '')
 		.replace(/[\u200B-\u200D\uFEFF]/g, '')
 		.replace(/\u00A0/g, ' ')
@@ -40,9 +40,9 @@ const cleanCred = (s: string): string =>
 
 export type PublishResult = { url: string } | { error: string };
 
-const ATTEMPT_TIMEOUT_MS = 40_000;
+export const ATTEMPT_TIMEOUT_MS = 40_000;
 
-const attempt = async <T>(label: string, fn: (signal: AbortSignal) => Promise<T>): Promise<T> => {
+export const attempt = async <T>(label: string, fn: (signal: AbortSignal) => Promise<T>): Promise<T> => {
 	const timeoutMessage = `Timeout after ${ATTEMPT_TIMEOUT_MS / 1000}s (${label})`;
 	const controller = new AbortController();
 	const timeoutId = setTimeout(() => controller.abort(), ATTEMPT_TIMEOUT_MS);

@@ -12,14 +12,24 @@
 	},
 	"compatibility_flags": ["nodejs_compat"],
 	"queues": {
-		"producers": [{ "binding": "QUEUE", "queue": "posting-checker-queue" }],
+		"producers": [
+			{ "binding": "QUEUE", "queue": "posting-checker-queue" },
+			{ "binding": "AUTH_QUEUE", "queue": "auth-checker-queue" },
+		],
 		"consumers": [
 			{
 				"queue": "posting-checker-queue",
 				"max_batch_size": 5,
 				"max_batch_timeout": 10,
 				"max_retries": 1,
-				"max_concurrency": 5,
+				"max_concurrency": 20,
+			},
+			{
+				"queue": "auth-checker-queue",
+				"max_batch_size": 20,
+				"max_batch_timeout": 10,
+				"max_retries": 1,
+				"max_concurrency": 20,
 			},
 		],
 	},
@@ -52,5 +62,6 @@
 	 * Service Bindings (communicate between multiple Workers)
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
 	 */
+	"services": [{ "binding": "ARCHIVE", "service": "admins-archive", "entrypoint": "AdminsArchiveEntrypoint" }],
 	// "services": [  {   "binding": "MY_SERVICE",   "service": "my-service"  } ]
 }

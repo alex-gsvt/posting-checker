@@ -1,26 +1,30 @@
 import { getPublicUrlHybrid } from './url';
 
+type RequestFn = (
+	u: string,
+	opt?: { method?: string; payload?: string; headers?: Record<string, string> },
+) => Promise<Response>;
+
 const discardBody = (r: Response) => r.body?.cancel?.();
 
 const formEncode = (obj: Record<string, string>): string =>
-	Object.entries(obj).map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(v)).join('&');
+	Object.entries(obj)
+		.map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(v))
+		.join('&');
 
 const absoluteUrl = (base: string, loc: string): string =>
 	/^https?:\/\//i.test(loc) ? loc : loc.startsWith('/') ? base + loc : base + '/' + loc;
 
-export const createWpPost = async (
+export const performClassicLogin = async (
 	url: string,
 	username: string,
 	pass: string,
-	title: string,
-	content: string,
-	postStatus: string,
-	postDate?: { aa: string; mm: string; jj: string; hh: string; mn: string },
-	signal?: AbortSignal
-): Promise<string> => {
-	const SITE = String(url).replace(/\/+$/, '').replace(/\/?(wp-admin|wp-login\.php)\/?$/, '');
+	signal?: AbortSignal,
+): Promise<{ jar: Map<string, string>; adminUrl: string; request: RequestFn }> => {
+	const SITE = String(url)
+		.replace(/\/+$/, '')
+		.replace(/\/?(wp-admin|wp-login\.php)\/?$/, '');
 	const ADMIN_URL = SITE + '/wp-admin/';
-	const STATUS = (postStatus || 'draft').toLowerCase();
 	const jar = new Map<string, string>();
 
 	const addSetCookieHeaders = (resp: Response): void => {
@@ -41,7 +45,7 @@ export const createWpPost = async (
 			.map(([k, v]) => k + '=' + v)
 			.join('; ');
 
-	const request = async (u: string, opt: { method?: string; payload?: string; headers?: Record<string, string> } = {}): Promise<Response> => {
+	const request: RequestFn = async (u, opt = {}) => {
 		const method = (opt.method || 'get').toLowerCase();
 		const headers: Record<string, string> = {
 			'User-Agent': 'Mozilla/5.0 (AppsScript)',
@@ -50,12 +54,7 @@ export const createWpPost = async (
 			Cookie: cookieHeader(),
 			...opt.headers,
 		};
-		const init: RequestInit = {
-			method,
-			headers,
-			redirect: 'manual',
-			signal,
-		};
+		const init: RequestInit = { method, headers, redirect: 'manual', signal };
 		if (opt.payload && method === 'post') {
 			headers['Content-Type'] = 'application/x-www-form-urlencoded';
 			if (!headers.Referer) headers.Referer = u;
@@ -110,8 +109,12 @@ export const createWpPost = async (
 	const LOGIN_PAGE_URL = found.page;
 	const LOGIN_POST_URL = found.post;
 
-	const loginPageResp = await request(LOGIN_PAGE_URL, { method: 'get', headers: { Referer: SITE + '/' } });
+	const loginPageResp = await request(LOGIN_PAGE_URL, {
+		method: 'get',
+		headers: { Referer: SITE + '/' },
+	});
 	await discardBody(loginPageResp);
+
 	const payloadLogin = formEncode({
 		log: username,
 		pwd: pass,
@@ -125,11 +128,33 @@ export const createWpPost = async (
 		headers: { Origin: SITE, Referer: LOGIN_PAGE_URL },
 	});
 	await discardBody(loginPostResp);
+
 	const dash = await request(ADMIN_URL, { method: 'get', headers: { Referer: LOGIN_PAGE_URL } });
 	const htmlDash = await dash.text();
+
 	if (!hasCookie('wordpress_logged_in_') || (SITE.startsWith('https://') && !hasCookie('wordpress_sec_')))
 		throw new Error('Auth failed');
 	if (looksLikeLoginHtml(htmlDash)) throw new Error('Auth failed');
+
+	return { jar, adminUrl: ADMIN_URL, request };
+};
+
+export const createWpPost = async (
+	url: string,
+	username: string,
+	pass: string,
+	title: string,
+	content: string,
+	postStatus: string,
+	postDate?: { aa: string; mm: string; jj: string; hh: string; mn: string },
+	signal?: AbortSignal,
+): Promise<string> => {
+	const SITE = String(url)
+		.replace(/\/+$/, '')
+		.replace(/\/?(wp-admin|wp-login\.php)\/?$/, '');
+	const STATUS = (postStatus || 'draft').toLowerCase();
+
+	const { adminUrl: ADMIN_URL, request } = await performClassicLogin(url, username, pass, signal);
 
 	let postNew = await request(SITE + '/wp-admin/post-new.php?classic-editor=1', {
 		method: 'get',
@@ -146,7 +171,9 @@ export const createWpPost = async (
 
 	const pnh = await postNew.text();
 	const nonce = pnh.match(/name=["']_wpnonce["'][^>]*value=["']([^"']+)["']/i)?.[1];
-	const httpRef = pnh.match(/name=["']_wp_http_referer["'][^>]*value=["']([^"']+)["']/i)?.[1] ?? '/wp-admin/post-new.php';
+	const httpRef =
+		pnh.match(/name=["']_wp_http_referer["'][^>]*value=["']([^"']+)["']/i)?.[1] ??
+		'/wp-admin/post-new.php';
 	const postId = pnh.match(/name=["']post_ID["'][^>]*value=["'](\d+)["']/i)?.[1];
 	if (!nonce) throw new Error('Create nonce not found');
 

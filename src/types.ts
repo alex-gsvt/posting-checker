@@ -1,3 +1,7 @@
+import type { AuthResult } from './publisher/auth';
+
+export type { AuthResult };
+
 export interface TaskInputItem {
 	meta?: string;
 	login: string;
@@ -31,8 +35,38 @@ export interface TaskResult {
 	completedAt: number;
 }
 
+export interface AuthCheckMessage {
+	id: string;
+	archiveRecordId: string;
+	owner: string;
+	login: string;
+	password: string;
+	site: string;
+	meta?: string;
+	createdAt: number;
+}
+
+export interface IAuthCheckResult {
+	status: 'valid' | 'invalid' | 'unavailable';
+	error?: string;
+	checkedAt: number;
+}
+
+export interface IArchiveService {
+	updateLoginResult(archiveRecordId: string, result: IAuthCheckResult): Promise<void>;
+}
+
+export interface EnqueueAuthRecord {
+	archiveRecordId: string;
+	owner: string;
+	login: string;
+	password: string;
+	site: string;
+	meta?: string;
+}
+
 export interface Bindings extends Env {}
 
-export interface HonoEnv  {
+export interface HonoEnv {
 	Bindings: Bindings;
 }
