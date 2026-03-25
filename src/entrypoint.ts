@@ -22,7 +22,7 @@ export class PostingCheckerEntrypoint extends WorkerEntrypoint<Env> {
 
 	async enqueueAuthBatch(records: EnqueueAuthRecord[]): Promise<{ queued: number }> {
 		let queued = 0;
-		for (const chunk of chunks(records, 1000)) {
+		for (const chunk of chunks(records, 100)) {
 			await this.env.AUTH_QUEUE.sendBatch(chunk.map((r) => ({ body: toAuthMessage(r) })));
 			queued += chunk.length;
 		}
