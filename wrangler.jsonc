@@ -33,7 +33,7 @@
 			},
 		],
 	},
-	"d1_databases": [{ "binding": "DB", "database_name": "posting-checker-db", "database_id": "8a1020fb-f229-4509-9c7f-a77f03af3837" }],
+	"d1_databases": [{ "binding": "DB", "database_name": "posting-checker-db", "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID" }],
 	"triggers": { "crons": ["0 3 * * *"] },
 	/**
 	 * Smart Placement
